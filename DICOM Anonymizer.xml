@@ -1,0 +1,509 @@
+<channel version="4.4.0">
+  <id>97641f39-c01f-49a8-a8d4-eb8c8e48a264</id>
+  <nextMetaDataId>7</nextMetaDataId>
+  <name>DICOM Anonymizer</name>
+  <description></description>
+  <revision>239</revision>
+  <sourceConnector version="4.4.0">
+    <metaDataId>0</metaDataId>
+    <name>sourceConnector</name>
+    <properties class="com.mirth.connect.connectors.dimse.DICOMReceiverProperties" version="4.4.0">
+      <pluginProperties/>
+      <listenerConnectorProperties version="4.4.0">
+        <host>0.0.0.0</host>
+        <port>109</port>
+      </listenerConnectorProperties>
+      <sourceConnectorProperties version="4.4.0">
+        <responseVariable>Auto-generate (Destinations completed)</responseVariable>
+        <respondAfterProcessing>true</respondAfterProcessing>
+        <processBatch>false</processBatch>
+        <firstResponse>false</firstResponse>
+        <processingThreads>1</processingThreads>
+        <resourceIds class="linked-hash-map">
+          <entry>
+            <string>Default Resource</string>
+            <string>[Default Resource]</string>
+          </entry>
+        </resourceIds>
+        <queueBufferSize>1000</queueBufferSize>
+      </sourceConnectorProperties>
+      <applicationEntity>mirth</applicationEntity>
+      <localHost></localHost>
+      <localPort></localPort>
+      <localApplicationEntity></localApplicationEntity>
+      <soCloseDelay>50</soCloseDelay>
+      <releaseTo>5</releaseTo>
+      <requestTo>5</requestTo>
+      <idleTo>60</idleTo>
+      <reaper>10</reaper>
+      <rspDelay>0</rspDelay>
+      <pdv1>false</pdv1>
+      <sndpdulen>16</sndpdulen>
+      <rcvpdulen>16</rcvpdulen>
+      <async>0</async>
+      <bigEndian>false</bigEndian>
+      <bufSize>1</bufSize>
+      <defts>false</defts>
+      <dest></dest>
+      <nativeData>false</nativeData>
+      <sorcvbuf>0</sorcvbuf>
+      <sosndbuf>0</sosndbuf>
+      <tcpDelay>true</tcpDelay>
+      <keyPW></keyPW>
+      <keyStore></keyStore>
+      <keyStorePW></keyStorePW>
+      <noClientAuth>true</noClientAuth>
+      <nossl2>true</nossl2>
+      <tls>notls</tls>
+      <trustStore></trustStore>
+      <trustStorePW></trustStorePW>
+    </properties>
+    <transformer version="4.4.0">
+      <elements>
+        <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.4.0">
+          <name>Is anonymized checker</name>
+          <sequenceNumber>0</sequenceNumber>
+          <enabled>true</enabled>
+          <script>var dcmmeta = {};
+var dicomXML ={};
+//Set some constants to compare with (this is considered anonomus values.
+dcmmeta.hiddenname = &quot;Anonymized&quot;;
+dcmmeta.hiddenpid = &quot;190101011211&quot;;
+dcmmeta.hiddendob = &quot;19010101&quot;
+dcmmeta.hiddenweight = &quot;666&quot;
+dcmmeta.hiddenaddr = &quot;Redacted&quot;
+dcmmeta.hiddeninstname = &quot;Removed&quot;
+dcmmeta.hiddeninstaddr = &quot;Redacted&quot;
+dcmmeta.piremoved = &quot;YES&quot;
+//Extract dicom-tags for later comparing
+	dcmmeta.name = msg[&apos;tag00100010&apos;];
+	dcmmeta.pid = msg[&apos;tag00100020&apos;];
+	dcmmeta.dob = msg[&apos;tag00100030&apos;];
+//	dcmmeta.age = msg[&apos;tag00101010&apos;];
+	dcmmeta.weight = msg[&apos;tag00101030&apos;];
+	dcmmeta.phname= msg[&apos;tag00080090&apos;];
+	dcmmeta.aphname = msg[&apos;tag0008009C&apos;];
+	dcmmeta.instname = msg[&apos;tag00080080&apos;];
+	dcmmeta.instaddr = msg[&apos;tag00080081&apos;];
+	dcmmeta.instname1 = msg[&apos;tag00081040&apos;];
+	dcmmeta.tpiremoved = msg[&apos;tag00120062&apos;];
+
+const conditionsArray = [
+    dcmmeta.name == dcmmeta.hiddenname,
+    dcmmeta.pid == dcmmeta.hiddenpid,
+    dcmmeta.dob == dcmmeta.hiddendob,
+    dcmmeta.weight == dcmmeta.hiddenweight,
+    dcmmeta.phname == dcmmeta.hiddenname,
+    dcmmeta.aphname == dcmmeta.hiddenname,
+    dcmmeta.instname == dcmmeta.hiddeninstname,
+    dcmmeta.instaddr == dcmmeta.hiddeninstaddr,
+    dcmmeta.instname1 == dcmmeta.hiddeninstname,
+    dcmmeta.tpiremoved == dcmmeta.piremoved, 
+]
+if (dcmmeta.tpiremoved != dcmmeta.piremoved) {
+    logger.debug(&quot;Incomming DICOM-image is not anonymous&quot;)
+    dicomXML.anon = false
+    dcmmeta.incanon = false
+    channelMap.put(&apos;DCMANON&apos;, dicomXML.anon);
+    channelMap.put(&apos;INCDCMANON&apos;, dcmmeta.incanon);
+}
+else
+{
+	if (dcmmeta.tpiremoved == dcmmeta.piremoved)
+	{
+	logger.debug(&quot;Incomming DICOM-image is anonymous&quot;)
+	dicomXML.anon = true
+	dcmmeta.incanon = true
+	channelMap.put(&apos;DCMANON&apos;, dicomXML.anon);
+	channelMap.put(&apos;INCDCMANON&apos;, dcmmeta.incanon);
+	}
+}
+/*
+if (conditionsArray.indexOf(false) === -1) {
+    logger.debug(&quot;Incomming DICOM-image is not anonymous&quot;)
+    dicomXML.anon = false
+    channelMap.put(&apos;DCMANON&apos;, dicomXML.anon);
+    logger.error(conditionsArray.indexOf(false))
+}
+else
+{
+	logger.debug(&quot;Incomming DICOM-image is anonymous&quot;)
+	dicomXML.anon = true
+	channelMap.put(&apos;DCMANON&apos;, dicomXML.anon);
+}
+*/</script>
+        </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+        <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.4.0">
+          <name>Put dicom metadata into variables</name>
+          <sequenceNumber>1</sequenceNumber>
+          <enabled>true</enabled>
+          <script>var dicomXML = {};
+dicomXML.name = msg[&apos;tag00100010&apos;].toString()
+dicomXML.Pid = msg[&apos;tag00100020&apos;].toString()
+dicomXML.suid = msg[&apos;tag0020000D&apos;].toString()
+dicomXML.seuid = msg[&apos;tag0020000E&apos;].toString()
+dicomXML.senr = msg[&apos;tag00200011&apos;].toString()
+dicomXML.inr = msg[&apos;tag00200013&apos;].toString()
+dicomXML.imuid = dicomXML.seuid + &apos;.&apos; + dicomXML.senr + &apos;.&apos; + dicomXML.inr
+dicomXML.filename = dicomXML.imuid + &apos;.dcm&apos;
+dicomXML.anonfilename = &apos;anon_&apos; + dicomXML.imuid + &apos;.dcm&apos;
+channelMap.put(&apos;DCMXML&apos;, dicomXML);
+channelMap.put(&apos;DCMFN&apos;, dicomXML.filename);
+channelMap.put(&apos;DCMFN_anon&apos;, dicomXML.anonfilename);</script>
+        </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+        <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.4.0">
+          <name>Anonomize patient</name>
+          <sequenceNumber>2</sequenceNumber>
+          <enabled>true</enabled>
+          <script>channelMap.get($(&apos;INCDCMANON&apos;));
+var dcmident = {};
+//Define replacement values for Deidentifying patient
+dcmident.hiddenname = &quot;Anonymized&quot;;
+dcmident.hiddenpid = &quot;190101011211&quot;;
+dcmident.hiddendob = &quot;19010101&quot;
+dcmident.hiddenyob = &quot;1901&quot;
+dcmident.hiddenweight = &quot;666&quot;
+dcmident.hiddenaddr = &quot;Redacted&quot;
+dcmident.hiddeninstname = &quot;Removed&quot;
+dcmident.hiddeninstaddr = &quot;Redacted&quot;
+dcmident.piremoved = &quot;YES&quot;
+dcmident.deidentmethod  = &quot;Deidentification done accodring to GDPR/HIIPPAA Standards, patient is no longer identifiable directly or indirectly&quot;
+//
+//Get current year and calculate patient age accordingly
+curryear = DateUtil.getCurrentDate(&quot;yyyy&quot;)
+dcmident.age = curryear - dcmident.hiddenyob
+//Check if patient already is anonomized then we let the message pass without tinkering with it
+if ($(&apos;INCDCMANON&apos;) == false)
+//Patient is not anonomized already so now we tinker with some metadata
+{
+	dicomXML.anon = false
+	//Map out the value of Anonomization status so not to process further by &quot;pass-through&quot;-destination
+	channelMap.put(&apos;DCMANON&apos;, dicomXML.anon);
+	//Name deidentification
+	//dcmident.name = dcmident.hiddenname.toString();
+	msg[&apos;tag00100010&apos;] = dcmident.hiddenname.toString();
+	msg[&apos;tag00100010&apos;][&apos;@len&apos;] = dcmident.hiddenname.toString().length;
+	msg[&apos;tag00100010&apos;][&apos;@tag&apos;] = &quot;00100010&quot;;
+	msg[&apos;tag00100010&apos;][&apos;@vr&apos;] = &quot;PN&quot;;
+	//PID Deidentification
+	//dcmident.pid = dcmident.hiddenpid.toString();
+	msg[&apos;tag00100020&apos;] = dcmident.hiddenpid.toString();
+	msg[&apos;tag00100020&apos;][&apos;@len&apos;] = dcmident.hiddenpid.toString().length;
+	msg[&apos;tag00100020&apos;][&apos;@tag&apos;] = &quot;00100020&quot;;
+	msg[&apos;tag00100020&apos;][&apos;@vr&apos;] = &quot;LO&quot;;
+	//DOB Deidentification
+	msg[&apos;tag00100030&apos;] = dcmident.hiddendob;
+	msg[&apos;tag00100030&apos;][&apos;@len&apos;] = dcmident.hiddendob.length;
+	msg[&apos;tag00100030&apos;][&apos;@tag&apos;] = &quot;00100030&quot;;
+	msg[&apos;tag00100030&apos;][&apos;@vr&apos;] = &quot;DA&quot;;
+	//Age deidentification
+	msg[&apos;tag00101010&apos;] = dcmident.age + &quot;Y&quot;;
+	msg[&apos;tag00101010&apos;][&apos;@len&apos;] = dcmident.age.length;
+	msg[&apos;tag00101010&apos;][&apos;@tag&apos;] = &quot;00101010&quot;;
+	msg[&apos;tag00100010&apos;][&apos;@vr&apos;] = &quot;AS&quot;;
+	//Patiend weight deidentification
+	msg[&apos;tag00101030&apos;] = dcmident.hiddenweight;
+	msg[&apos;tag00101030&apos;][&apos;@len&apos;] = dcmident.hiddenweight.length;
+	msg[&apos;tag00101030&apos;][&apos;@tag&apos;] = &quot;00101030&quot;;
+	msg[&apos;tag00101030&apos;][&apos;@vr&apos;] = &quot;DS&quot;;
+	//Patient Address deidentification
+		//Not normally found in DCM-metadata
+	//Patient Phone-No deidentification
+		//Not part of DICOM standard
+	//Patient-Email-address deidentification
+		//Not part of DICOM standard
+	//Referring Physician&apos;s Name
+	msg[&apos;tag00080090&apos;] = dcmident.hiddenname;
+	msg[&apos;tag00080090&apos;][&apos;@len&apos;] = dcmident.hiddenname.length;
+	msg[&apos;tag00080090&apos;][&apos;@tag&apos;] = &quot;00080090&quot;;
+	msg[&apos;tag00080090&apos;][&apos;@vr&apos;] = &quot;PN&quot;;	
+	//Consulting Physician&apos;s Name
+	msg[&apos;tag0008009C&apos;] = dcmident.hiddenname;
+	msg[&apos;tag0008009C&apos;][&apos;@len&apos;] = dcmident.hiddenname.length;
+	msg[&apos;tag0008009C&apos;][&apos;@tag&apos;] = &quot;0008009C&quot;;
+	msg[&apos;tag0008009C&apos;][&apos;@vr&apos;] = &quot;PN&quot;;
+	//Institution Name
+	msg[&apos;tag00080080&apos;] = dcmident.hiddeninstname;
+	msg[&apos;tag00080080&apos;][&apos;@len&apos;] = dcmident.hiddeninstname.length;
+	msg[&apos;tag00080080&apos;][&apos;@tag&apos;] = &quot;00080080&quot;;
+	msg[&apos;tag00080080&apos;][&apos;@vr&apos;] = &quot;LO&quot;;
+	//Insitution Address
+	msg[&apos;tag00080081&apos;] = dcmident.hiddeninstaddr;
+	msg[&apos;tag00080081&apos;][&apos;@len&apos;] = dcmident.hiddeninstaddr.length;
+	msg[&apos;tag00080081&apos;][&apos;@tag&apos;] = &quot;00080081&quot;;
+	msg[&apos;tag00080081&apos;][&apos;@vr&apos;] = &quot;ST&quot;;
+	//Insitutional departement name
+	msg[&apos;tag00081040&apos;] = dcmident.hiddeninstname;
+	msg[&apos;tag00081040&apos;][&apos;@len&apos;] = dcmident.hiddeninstname.length;
+	msg[&apos;tag00081040&apos;][&apos;@tag&apos;] = &quot;00081040&quot;;
+	msg[&apos;tag00081040&apos;][&apos;@vr&apos;] = &quot;LO&quot;;		
+	//De-Atuhentication Method
+	msg[&apos;tag00120062&apos;] = dcmident.piremoved;
+	msg[&apos;tag00120062&apos;][&apos;@len&apos;] = dcmident.piremoved.length;
+	msg[&apos;tag00120062&apos;][&apos;@tag&apos;] = &quot;00120062&quot;;
+	msg[&apos;tag00120062&apos;][&apos;@vr&apos;] = &quot;CS&quot;;
+	//De-Atuhentication Method description
+	msg[&apos;tag00120063&apos;] = dcmident.deidentmethod;
+	msg[&apos;tag00120063&apos;][&apos;@len&apos;] = dcmident.deidentmethod.length;
+	msg[&apos;tag00120063&apos;][&apos;@tag&apos;] = &quot;00120063&quot;;
+	msg[&apos;tag00120063&apos;][&apos;@vr&apos;] = &quot;LO&quot;;
+//Write to log that we now hav done all of the de-identification required
+	dicomXML.anon = true
+	logger.info(&quot;Patient has been deidentified!&quot;)
+	logger.info(&quot;HIPAA Hippo is satisfied now ;-)&quot;)
+	channelMap.put(&apos;PDCMANON&apos;, dicomXML.anon);
+}
+else
+{
+	dicomXML.anon = true
+	logger.info(&quot;Patient is already deidentified!&quot;)
+	logger.info(&quot;HIPAA Hippo is already satisfied now ;-)&quot;)
+	channelMap.put(&apos;PDCMANON&apos;, dicomXML.anon);
+}</script>
+        </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+      </elements>
+      <inboundTemplate encoding="base64">PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+DQo8ZGljb20+DQogICAgPHRhZzAwMDIwMDAwIGxlbj0iNCIgdGFnPSIwMDAyMDAwMCIgdnI9IlVMIj4xMzg8L3RhZzAwMDIwMDAwPg0KICAgIDx0YWcwMDAyMDAwMSBsZW49IjIiIHRhZz0iMDAwMjAwMDEiIHZyPSJPQiI+MDBcMDE8L3RhZzAwMDIwMDAxPg0KICAgIDx0YWcwMDAyMDAwMiBsZW49IjI4IiB0YWc9IjAwMDIwMDAyIiB2cj0iVUkiPjEuMi44NDAuMTAwMDguNS4xLjQuMS4xLjMuMTwvdGFnMDAwMjAwMDI+DQogICAgPHRhZzAwMDIwMDAzIGxlbj0iMzAiIHRhZz0iMDAwMjAwMDMiIHZyPSJVSSI+OTk5Ljk5OS4xMzMuMTk5Ni4xLjE4MDAuMS42LjI5PC90YWcwMDAyMDAwMz4NCiAgICA8dGFnMDAwMjAwMTAgbGVuPSIyMCIgdGFnPSIwMDAyMDAxMCIgdnI9IlVJIj4xLjIuODQwLjEwMDA4LjEuMi41PC90YWcwMDAyMDAxMD4NCiAgICA8dGFnMDAwMjAwMTIgbGVuPSIxNCIgdGFnPSIwMDAyMDAxMiIgdnI9IlVJIj45OTkuOTk5LjMzMjM0NjwvdGFnMDAwMjAwMTI+DQogICAgPHRhZzAwMDgwMDA4IGxlbj0iMCIgdGFnPSIwMDA4MDAwOCIgdnI9IkNTIi8+DQogICAgPHRhZzAwMDgwMDE2IGxlbj0iMjgiIHRhZz0iMDAwODAwMTYiIHZyPSJVSSI+MS4yLjg0MC4xMDAwOC41LjEuNC4xLjEuMy4xPC90YWcwMDA4MDAxNj4NCiAgICA8dGFnMDAwODAwMTggbGVuPSIzMCIgdGFnPSIwMDA4MDAxOCIgdnI9IlVJIj45OTkuOTk5LjEzMy4xOTk2LjEuMTgwMC4xLjYuMjk8L3RhZzAwMDgwMDE4Pg0KICAgIDx0YWcwMDA4MDAyMCBsZW49IjgiIHRhZz0iMDAwODAwMjAiIHZyPSJEQSI+MTk5NDAzMjM8L3RhZzAwMDgwMDIwPg0KICAgIDx0YWcwMDA4MDAzMCBsZW49IjgiIHRhZz0iMDAwODAwMzAiIHZyPSJUTSI+MTE1MTA0LjA8L3RhZzAwMDgwMDMwPg0KICAgIDx0YWcwMDA4MDA1MCBsZW49IjAiIHRhZz0iMDAwODAwNTAiIHZyPSJTSCIvPg0KICAgIDx0YWcwMDA4MDA2MCBsZW49IjIiIHRhZz0iMDAwODAwNjAiIHZyPSJDUyI+VVM8L3RhZzAwMDgwMDYwPg0KICAgIDx0YWcwMDA4MDA3MCBsZW49IjE0IiB0YWc9IjAwMDgwMDcwIiB2cj0iTE8iLz4NCiAgICA8dGFnMDAwODAwOTAgbGVuPSIxOCIgdGFnPSIwMDA4MDA5MCIgdnI9IlBOIj4tLS0tLS0tLS0tLS0tLS0tLS08L3RhZzAwMDgwMDkwPg0KICAgIDx0YWcwMDA4MTAzMCBsZW49IjE0IiB0YWc9IjAwMDgxMDMwIiB2cj0iTE8iPkVjaG9jYXJkaW9ncmFtPC90YWcwMDA4MTAzMD4NCiAgICA8dGFnMDAwODEwM0UgbGVuPSIxNiIgdGFnPSIwMDA4MTAzRSIgdnI9IkxPIj5JQVMgRkVOMjwvdGFnMDAwODEwM0U+DQogICAgPHRhZzAwMTAwMDEwIGxlbj0iMTYiIHRhZz0iMDAxMDAwMTAiIHZyPSJQTiI+UnVibyBERU1PPC90YWcwMDEwMDAxMD4NCiAgICA8dGFnMDAxMDAwMjAgbGVuPSIxMiIgdGFnPSIwMDEwMDAyMCIgdnI9IkxPIj4xMjMtNDUtNjc4OTwvdGFnMDAxMDAwMjA+DQogICAgPHRhZzAwMTAwMDMwIGxlbj0iOCIgdGFnPSIwMDEwMDAzMCIgdnI9IkRBIj4xOTIzMTAxNjwvdGFnMDAxMDAwMzA+DQogICAgPHRhZzAwMTAwMDQwIGxlbj0iMiIgdGFnPSIwMDEwMDA0MCIgdnI9IkNTIj5GPC90YWcwMDEwMDA0MD4NCiAgICA8dGFnMDAxODEwNjMgbGVuPSIxMCIgdGFnPSIwMDE4MTA2MyIgdnI9IkRTIj42Mi43MjcyNzI8L3RhZzAwMTgxMDYzPg0KICAgIDx0YWcwMDIwMDAwRCBsZW49IjE2IiB0YWc9IjAwMjAwMDBEIiB2cj0iVUkiPjk5OS45OTkuMzg1OTc0NDwvdGFnMDAyMDAwMEQ+DQogICAgPHRhZzAwMjAwMDBFIGxlbj0iMTYiIHRhZz0iMDAyMDAwMEUiIHZyPSJVSSI+OTk5Ljk5OS45NDgyNzQ1MzwvdGFnMDAyMDAwMEU+DQogICAgPHRhZzAwMjAwMDEwIGxlbj0iMTAiIHRhZz0iMDAyMDAwMTAiIHZyPSJTSCI+MDI3ODkzNDYyPC90YWcwMDIwMDAxMD4NCiAgICA8dGFnMDAyMDAwMTEgbGVuPSI0IiB0YWc9IjAwMjAwMDExIiB2cj0iSVMiPjU4Mjk8L3RhZzAwMjAwMDExPg0KICAgIDx0YWcwMDIwMDAxMyBsZW49IjIiIHRhZz0iMDAyMDAwMTMiIHZyPSJJUyI+Mjg8L3RhZzAwMjAwMDEzPg0KICAgIDx0YWcwMDIwMDAyMCBsZW49IjAiIHRhZz0iMDAyMDAwMjAiIHZyPSJDUyIvPg0KICAgIDx0YWcwMDIwNDAwMCBsZW49IjE2IiB0YWc9IjAwMjA0MDAwIiB2cj0iTFQiPklBUyBGRU4yPC90YWcwMDIwNDAwMD4NCiAgICA8dGFnMDAyODAwMDIgbGVuPSIyIiB0YWc9IjAwMjgwMDAyIiB2cj0iVVMiPjE8L3RhZzAwMjgwMDAyPg0KICAgIDx0YWcwMDI4MDAwNCBsZW49IjE0IiB0YWc9IjAwMjgwMDA0IiB2cj0iQ1MiPlBBTEVUVEUgQ09MT1I8L3RhZzAwMjgwMDA0Pg0KICAgIDx0YWcwMDI4MDAwOCBsZW49IjIiIHRhZz0iMDAyODAwMDgiIHZyPSJJUyI+MTE8L3RhZzAwMjgwMDA4Pg0KICAgIDx0YWcwMDI4MDAwOSBsZW49IjQiIHRhZz0iMDAyODAwMDkiIHZyPSJBVCI+MDAxODEwNjM8L3RhZzAwMjgwMDA5Pg0KICAgIDx0YWcwMDI4MDAxMCBsZW49IjIiIHRhZz0iMDAyODAwMTAiIHZyPSJVUyI+NDMwPC90YWcwMDI4MDAxMD4NCiAgICA8dGFnMDAyODAwMTEgbGVuPSIyIiB0YWc9IjAwMjgwMDExIiB2cj0iVVMiPjYwMDwvdGFnMDAyODAwMTE+DQogICAgPHRhZzAwMjgwMTAwIGxlbj0iMiIgdGFnPSIwMDI4MDEwMCIgdnI9IlVTIj44PC90YWcwMDI4MDEwMD4NCiAgICA8dGFnMDAyODAxMDEgbGVuPSIyIiB0YWc9IjAwMjgwMTAxIiB2cj0iVVMiPjg8L3RhZzAwMjgwMTAxPg0KICAgIDx0YWcwMDI4MDEwMiBsZW49IjIiIHRhZz0iMDAyODAxMDIiIHZyPSJVUyI+NzwvdGFnMDAyODAxMDI+DQogICAgPHRhZzAwMjgwMTAzIGxlbj0iMiIgdGFnPSIwMDI4MDEwMyIgdnI9IlVTIj4wPC90YWcwMDI4MDEwMz4NCiAgICA8dGFnMDAyODExMDEgbGVuPSI2IiB0YWc9IjAwMjgxMTAxIiB2cj0iVVMiPjI1NlwwXDE2PC90YWcwMDI4MTEwMT4NCiAgICA8dGFnMDAyODExMDIgbGVuPSI2IiB0YWc9IjAwMjgxMTAyIiB2cj0iVVMiPjI1NlwwXDE2PC90YWcwMDI4MTEwMj4NCiAgICA8dGFnMDAyODExMDMgbGVuPSI2IiB0YWc9IjAwMjgxMTAzIiB2cj0iVVMiPjI1NlwwXDE2PC90YWcwMDI4MTEwMz4NCiAgICA8dGFnMDAyODExOTkgbGVuPSIxOCIgdGFnPSIwMDI4MTE5OSIgdnI9IlVJIj45OTkuOTk5LjM4OTk3MjIzODwvdGFnMDAyODExOTk+DQogICAgPHRhZzAwMjgxMjAxIGxlbj0iNTEyIiB0YWc9IjAwMjgxMjAxIiB2cj0iT1ciPjBcNTEyXDEwMjRcMTc5MlwyNTYwXDMwNzJcMzg0MFw0MzUyXDQ4NjRcNTg4OFw2NDAwXDcxNjhcNzY4MFw4MTkyXDkyMTZcOTcyOFwxMDI0MFwxMTAwOFwxMTUyMFwxMjI4OFwxMzA1NlwxMzU2OFwxNDMzNlwxNDg0OFwxNTM2MFwxNjEyOFwxNjg5NlwxNzQwOFwxODE3NlwxODY4OFwxOTQ1NlwxOTk2OFwyMDczNlwyMTUwNFwyMjAxNlwyMjUyOFwyMzI5NlwyNDA2NFwyNDgzMlwyNTYwMFwyNTg1NlwyNjYyNFwyNzM5MlwyNzkwNFwyODY3MlwyOTE4NFwyOTk1MlwzMDQ2NFwzMTIzMlwzMjAwMFwzMjUxMlwzMzAyNFwzMzc5MlwzNDMwNFwzNTA3MlwzNTg0MFwzNjM1MlwzNzEyMFwzNzYzMlwzODQwMFwzOTE2OFwzOTY4MFw0MDE5Mlw0MDk2MFw0MTQ3Mlw0MjQ5Nlw0MzAwOFw0MzUyMFw0NDI4OFw0NDgwMFw0NTU2OFw0NjMzNlw0Njg0OFw0NzYxNlw0ODEyOFw0ODY0MFw0OTY2NFw1MDE3Nlw1MDY4OFw1MTQ1Nlw1MTk2OFw1MjQ4MFw1MzUwNFw1NDAxNlw1NDc4NFw1NTI5Nlw1NTgwOFw1NjgzMlw1NzM0NFw1Nzg1Nlw1ODYyNFw1OTEzNlw2MDE2MFw2MDY3Mlw2MTE4NFw2MTk1Mlw2MjQ2NFw2Mjk3Nlw2NDI1Nlw2NDc2OFw0MzUyXDY1MjgwXDY1MjgwXDExMDA4XDQyNDk2XDQzNTIwXDQ0ODAwXDM1NTg0XDQxNDcyXDUxMlwxMDI0XDEyODBcMTUzNlwxNzkyXDE3OTJcNjE0NFw0NDU0NFw3NDI0XDY1MjgwXDMwMjA4XDBcMTk3MTJcNTIyMjRcNTAxNzZcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcNTYzMlw1NjMyXDU2MzJcNTYzMlwxMTI2NFwxMTI2NFwxMTI2NFwxMTI2NFwxNjY0MFwxNjY0MFwxNjY0MFwxNjY0MFwyMTc2MFwyMTc2MFwyMTc2MFwyMTc2MFwyNjg4MFwyNjg4MFwyNjg4MFwyNjg4MFwzMTQ4OFwzMTQ4OFwzMTQ4OFwzMTQ4OFwzNjA5NlwzNjA5NlwzNjA5NlwzNjA5Nlw0MDQ0OFw0MDQ0OFw0MDQ0OFw0MDQ0OFw0NDU0NFw0NDU0NFw0NDU0NFw0NDU0NFw0ODY0MFw0ODY0MFw0ODY0MFw0ODY0MFw1MjIyNFw1MjIyNFw1MjIyNFw1MjIyNFw1NTgwOFw1NTgwOFw1NTgwOFw1NTgwOFw1OTEzNlw1OTEzNlw1OTEzNlw1OTEzNlw2MjIwOFw2MjIwOFw2MjIwOFw2MjIwOFw2NTI4MFw2NTI4MFw2NTI4MFw2NTI4MDwvdGFnMDAyODEyMDE+DQogICAgPHRhZzAwMjgxMjAyIGxlbj0iNTEyIiB0YWc9IjAwMjgxMjAyIiB2cj0iT1ciPjBcNTEyXDEwMjRcMTc5MlwyNTYwXDMwNzJcMzg0MFw0MzUyXDQ4NjRcNTg4OFw2NDAwXDcxNjhcNzY4MFw4MTkyXDkyMTZcOTcyOFwxMDI0MFwxMTAwOFwxMTUyMFwxMjI4OFwxMzA1NlwxMzU2OFwxNDMzNlwxNDg0OFwxNTM2MFwxNjEyOFwxNjg5NlwxNzQwOFwxODE3NlwxODY4OFwxOTQ1NlwxOTk2OFwyMDczNlwyMTUwNFwyMjAxNlwyMjUyOFwyMzI5NlwyNDA2NFwyNDgzMlwyNTYwMFwyNTg1NlwyNjYyNFwyNzM5MlwyNzkwNFwyODY3MlwyOTE4NFwyOTk1MlwzMDQ2NFwzMTIzMlwzMjAwMFwzMjUxMlwzMzAyNFwzMzc5MlwzNDMwNFwzNTA3MlwzNTg0MFwzNjM1MlwzNzEyMFwzNzYzMlwzODQwMFwzOTE2OFwzOTY4MFw0MDE5Mlw0MDk2MFw0MTQ3Mlw0MjQ5Nlw0MzAwOFw0MzUyMFw0NDI4OFw0NDgwMFw0NTU2OFw0NjMzNlw0Njg0OFw0NzYxNlw0ODEyOFw0ODY0MFw0OTY2NFw1MDE3Nlw1MDY4OFw1MTQ1Nlw1MTk2OFw1MjQ4MFw1MzUwNFw1NDAxNlw1NDc4NFw1NTI5Nlw1NTgwOFw1NjgzMlw1NzM0NFw1Nzg1Nlw1ODYyNFw1OTEzNlw2MDE2MFw2MDY3Mlw2MTE4NFw2MTk1Mlw2MjQ2NFw2Mjk3Nlw2NDI1Nlw2NDc2OFw0MzUyXDI1NjAwXDI1NjAwXDQzNTIwXDQ0ODAwXDQ3ODcyXDU5OTA0XDQ3NjE2XDExMDA4XDg3MDRcMTg0MzJcMjQ4MzJcMjk5NTJcMzM3OTJcMzc2MzJcNjE0NFw0NDU0NFwxMTUyMFw2NTI4MFwzMDIwOFwwXDUxNDU2XDUyMjI0XDUwMTc2XDBcMFwwXDBcMFwwXDBcMFw1OTM5Mlw1OTM5Mlw1OTM5Mlw1OTM5Mlw0OTkyMFw0OTkyMFw0OTkyMFw0OTkyMFw0MTQ3Mlw0MTQ3Mlw0MTQ3Mlw0MTQ3MlwzNDA0OFwzNDA0OFwzNDA0OFwzNDA0OFwyNzM5MlwyNzM5MlwyNzM5MlwyNzM5MlwyMTc2MFwyMTc2MFwyMTc2MFwyMTc2MFwxNjY0MFwxNjY0MFwxNjY0MFwxNjY0MFwxMjgwMFwxMjgwMFwxMjgwMFwxMjgwMFw5MjE2XDkyMTZcOTIxNlw5MjE2XDY0MDBcNjQwMFw2NDAwXDY0MDBcNDA5Nlw0MDk2XDQwOTZcNDA5NlwyODE2XDI4MTZcMjgxNlwyODE2XDEyODBcMTI4MFwxMjgwXDEyODBcMTAyNFwxMDI0XDEwMjRcMTAyNFw3NjhcNzY4XDc2OFw3NjhcMFwwXDBcMFw3NjhcNzY4XDc2OFw3NjhcMTAyNFwxMDI0XDEwMjRcMTAyNFwxNTM2XDE1MzZcMTUzNlwxNTM2XDI4MTZcMjgxNlwyODE2XDI4MTZcNDYwOFw0NjA4XDQ2MDhcNDYwOFw2OTEyXDY5MTJcNjkxMlw2OTEyXDk3MjhcOTcyOFw5NzI4XDk3MjhcMTM1NjhcMTM1NjhcMTM1NjhcMTM1NjhcMTc5MjBcMTc5MjBcMTc5MjBcMTc5MjBcMjM1NTJcMjM1NTJcMjM1NTJcMjM1NTJcMjk0NDBcMjk0NDBcMjk0NDBcMjk0NDBcMzY4NjRcMzY4NjRcMzY4NjRcMzY4NjRcNDQ4MDBcNDQ4MDBcNDQ4MDBcNDQ4MDBcNTQwMTZcNTQwMTZcNTQwMTZcNTQwMTZcNjQwMDBcNjQwMDBcNjQwMDBcNjQwMDA8L3RhZzAwMjgxMjAyPg0KICAgIDx0YWcwMDI4MTIwMyBsZW49IjUxMiIgdGFnPSIwMDI4MTIwMyIgdnI9Ik9XIj4wXDUxMlwxMDI0XDE3OTJcMjU2MFwzMDcyXDM4NDBcNDM1Mlw0ODY0XDU4ODhcNjQwMFw3MTY4XDc2ODBcODE5Mlw5MjE2XDk3MjhcMTAyNDBcMTEwMDhcMTE1MjBcMTIyODhcMTMwNTZcMTM1NjhcMTQzMzZcMTQ4NDhcMTUzNjBcMTYxMjhcMTY4OTZcMTc0MDhcMTgxNzZcMTg2ODhcMTk0NTZcMTk5NjhcMjA3MzZcMjE1MDRcMjIwMTZcMjI1MjhcMjMyOTZcMjQwNjRcMjQ4MzJcMjU2MDBcMjU4NTZcMjY2MjRcMjczOTJcMjc5MDRcMjg2NzJcMjkxODRcMjk5NTJcMzA0NjRcMzEyMzJcMzIwMDBcMzI1MTJcMzMwMjRcMzM3OTJcMzQzMDRcMzUwNzJcMzU4NDBcMzYzNTJcMzcxMjBcMzc2MzJcMzg0MDBcMzkxNjhcMzk2ODBcNDAxOTJcNDA5NjBcNDE0NzJcNDI0OTZcNDMwMDhcNDM1MjBcNDQyODhcNDQ4MDBcNDU1NjhcNDYzMzZcNDY4NDhcNDc2MTZcNDgxMjhcNDg2NDBcNDk2NjRcNTAxNzZcNTA2ODhcNTE0NTZcNTE5NjhcNTI0ODBcNTM1MDRcNTQwMTZcNTQ3ODRcNTUyOTZcNTU4MDhcNTY4MzJcNTczNDRcNTc4NTZcNTg2MjRcNTkxMzZcNjAxNjBcNjA2NzJcNjExODRcNjE5NTJcNjI0NjRcNjI5NzZcNjQyNTZcNjQ3NjhcNDM1MlwxNjY0MFwxNjY0MFw1OTkwNFw0MzAwOFw0NDU0NFwxMDc1MlwxNDMzNlwzNTMyOFw0MDk2XDUzNzZcNzQyNFw4OTYwXDEwMjQwXDExMjY0XDYxNDRcNDQ1NDRcMTg2ODhcNjUyODBcMzAyMDhcMFw2NTI4MFw1MjIyNFw1MDE3NlwwXDBcMFwwXDBcMFwwXDBcNjM3NDRcNjM3NDRcNjM3NDRcNjM3NDRcNjA5MjhcNjA5MjhcNjA5MjhcNjA5MjhcNTc4NTZcNTc4NTZcNTc4NTZcNTc4NTZcNTQ3ODRcNTQ3ODRcNTQ3ODRcNTQ3ODRcNTE3MTJcNTE3MTJcNTE3MTJcNTE3MTJcNDgzODRcNDgzODRcNDgzODRcNDgzODRcNDUwNTZcNDUwNTZcNDUwNTZcNDUwNTZcNDE0NzJcNDE0NzJcNDE0NzJcNDE0NzJcMzgxNDRcMzgxNDRcMzgxNDRcMzgxNDRcMzQ1NjBcMzQ1NjBcMzQ1NjBcMzQ1NjBcMzA5NzZcMzA5NzZcMzA5NzZcMzA5NzZcMjcxMzZcMjcxMzZcMjcxMzZcMjcxMzZcMjMyOTZcMjMyOTZcMjMyOTZcMjMyOTZcMTk0NTZcMTk0NTZcMTk0NTZcMTk0NTZcMTUzNjBcMTUzNjBcMTUzNjBcMTUzNjBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMDwvdGFnMDAyODEyMDM+DQo8L2RpY29tPg0K</inboundTemplate>
+      <outboundTemplate encoding="base64"></outboundTemplate>
+      <inboundDataType>DICOM</inboundDataType>
+      <outboundDataType>DICOM</outboundDataType>
+      <inboundProperties class="com.mirth.connect.plugins.datatypes.dicom.DICOMDataTypeProperties" version="4.4.0"/>
+      <outboundProperties class="com.mirth.connect.plugins.datatypes.dicom.DICOMDataTypeProperties" version="4.4.0"/>
+    </transformer>
+    <filter version="4.4.0">
+      <elements/>
+    </filter>
+    <transportName>DICOM Listener</transportName>
+    <mode>SOURCE</mode>
+    <enabled>true</enabled>
+    <waitForPrevious>true</waitForPrevious>
+  </sourceConnector>
+  <destinationConnectors>
+    <connector version="4.4.0">
+      <metaDataId>5</metaDataId>
+      <name>Save file directly if incomming was anonymous</name>
+      <properties class="com.mirth.connect.connectors.file.FileDispatcherProperties" version="4.4.0">
+        <pluginProperties/>
+        <destinationConnectorProperties version="4.4.0">
+          <queueEnabled>false</queueEnabled>
+          <sendFirst>false</sendFirst>
+          <retryIntervalMillis>10000</retryIntervalMillis>
+          <regenerateTemplate>false</regenerateTemplate>
+          <retryCount>0</retryCount>
+          <rotate>false</rotate>
+          <includeFilterTransformer>false</includeFilterTransformer>
+          <threadCount>1</threadCount>
+          <threadAssignmentVariable></threadAssignmentVariable>
+          <validateResponse>false</validateResponse>
+          <resourceIds class="linked-hash-map">
+            <entry>
+              <string>Default Resource</string>
+              <string>[Default Resource]</string>
+            </entry>
+          </resourceIds>
+          <queueBufferSize>1000</queueBufferSize>
+          <reattachAttachments>true</reattachAttachments>
+        </destinationConnectorProperties>
+        <scheme>FILE</scheme>
+        <host>C:/dcm/regen</host>
+        <outputPattern>${DCMFN}</outputPattern>
+        <anonymous>true</anonymous>
+        <username>anonymous</username>
+        <password>anonymous</password>
+        <timeout>10000</timeout>
+        <keepConnectionOpen>false</keepConnectionOpen>
+        <maxIdleTime>0</maxIdleTime>
+        <secure>true</secure>
+        <passive>true</passive>
+        <validateConnection>true</validateConnection>
+        <outputAppend>false</outputAppend>
+        <errorOnExists>false</errorOnExists>
+        <temporary>false</temporary>
+        <binary>true</binary>
+        <charsetEncoding>DEFAULT_ENCODING</charsetEncoding>
+        <template>${DICOMMESSAGE}</template>
+      </properties>
+      <transformer version="4.4.0">
+        <elements/>
+        <inboundTemplate encoding="base64"></inboundTemplate>
+        <inboundDataType>DICOM</inboundDataType>
+        <outboundDataType>DICOM</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.dicom.DICOMDataTypeProperties" version="4.4.0"/>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.dicom.DICOMDataTypeProperties" version="4.4.0"/>
+      </transformer>
+      <responseTransformer version="4.4.0">
+        <elements/>
+        <inboundDataType>DICOM</inboundDataType>
+        <outboundDataType>DICOM</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.dicom.DICOMDataTypeProperties" version="4.4.0"/>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.dicom.DICOMDataTypeProperties" version="4.4.0"/>
+      </responseTransformer>
+      <filter version="4.4.0">
+        <elements>
+          <com.mirth.connect.plugins.javascriptrule.JavaScriptRule version="4.4.0">
+            <name>Check if incomming dicom-image already was de-identified</name>
+            <sequenceNumber>0</sequenceNumber>
+            <enabled>true</enabled>
+            <script>channelMap.get($(&apos;INCDCMANON&apos;));
+if ($(&apos;INCDCMANON&apos;) == false ) {
+	logger.info(&apos;Incomming image was not deidentified, passed to anon-writer for correct filename setting.&apos;)
+    return false;
+}
+else if ($(&apos;INCDCMANON&apos;) == true) {
+	logger.info(&apos;Image was already anonymous, saving as new file. Filename is: &apos; + $(&apos;DCMFN&apos;))
+return true;
+}</script>
+          </com.mirth.connect.plugins.javascriptrule.JavaScriptRule>
+        </elements>
+      </filter>
+      <transportName>File Writer</transportName>
+      <mode>DESTINATION</mode>
+      <enabled>true</enabled>
+      <waitForPrevious>true</waitForPrevious>
+    </connector>
+    <connector version="4.4.0">
+      <metaDataId>1</metaDataId>
+      <name>Save file after anonymization</name>
+      <properties class="com.mirth.connect.connectors.file.FileDispatcherProperties" version="4.4.0">
+        <pluginProperties/>
+        <destinationConnectorProperties version="4.4.0">
+          <queueEnabled>false</queueEnabled>
+          <sendFirst>false</sendFirst>
+          <retryIntervalMillis>10000</retryIntervalMillis>
+          <regenerateTemplate>false</regenerateTemplate>
+          <retryCount>0</retryCount>
+          <rotate>false</rotate>
+          <includeFilterTransformer>false</includeFilterTransformer>
+          <threadCount>1</threadCount>
+          <threadAssignmentVariable></threadAssignmentVariable>
+          <validateResponse>false</validateResponse>
+          <resourceIds class="linked-hash-map">
+            <entry>
+              <string>Default Resource</string>
+              <string>[Default Resource]</string>
+            </entry>
+          </resourceIds>
+          <queueBufferSize>1000</queueBufferSize>
+          <reattachAttachments>true</reattachAttachments>
+        </destinationConnectorProperties>
+        <scheme>FILE</scheme>
+        <host>C:/dcm/regen</host>
+        <outputPattern>${DCMFN_anon}</outputPattern>
+        <anonymous>true</anonymous>
+        <username>anonymous</username>
+        <password>anonymous</password>
+        <timeout>10000</timeout>
+        <keepConnectionOpen>true</keepConnectionOpen>
+        <maxIdleTime>0</maxIdleTime>
+        <secure>true</secure>
+        <passive>true</passive>
+        <validateConnection>true</validateConnection>
+        <outputAppend>false</outputAppend>
+        <errorOnExists>false</errorOnExists>
+        <temporary>false</temporary>
+        <binary>true</binary>
+        <charsetEncoding>DEFAULT_ENCODING</charsetEncoding>
+        <template>${DICOMMESSAGE}</template>
+      </properties>
+      <transformer version="4.4.0">
+        <elements/>
+        <inboundTemplate encoding="base64">PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+DQo8ZGljb20+DQogICAgPHRhZzAwMDIwMDAwIGxlbj0iNCIgdGFnPSIwMDAyMDAwMCIgdnI9IlVMIj4xMzg8L3RhZzAwMDIwMDAwPg0KICAgIDx0YWcwMDAyMDAwMSBsZW49IjIiIHRhZz0iMDAwMjAwMDEiIHZyPSJPQiI+MDBcMDE8L3RhZzAwMDIwMDAxPg0KICAgIDx0YWcwMDAyMDAwMiBsZW49IjI4IiB0YWc9IjAwMDIwMDAyIiB2cj0iVUkiPjEuMi44NDAuMTAwMDguNS4xLjQuMS4xLjMuMTwvdGFnMDAwMjAwMDI+DQogICAgPHRhZzAwMDIwMDAzIGxlbj0iMzAiIHRhZz0iMDAwMjAwMDMiIHZyPSJVSSI+OTk5Ljk5OS4xMzMuMTk5Ni4xLjE4MDAuMS42LjI5PC90YWcwMDAyMDAwMz4NCiAgICA8dGFnMDAwMjAwMTAgbGVuPSIyMCIgdGFnPSIwMDAyMDAxMCIgdnI9IlVJIj4xLjIuODQwLjEwMDA4LjEuMi41PC90YWcwMDAyMDAxMD4NCiAgICA8dGFnMDAwMjAwMTIgbGVuPSIxNCIgdGFnPSIwMDAyMDAxMiIgdnI9IlVJIj45OTkuOTk5LjMzMjM0NjwvdGFnMDAwMjAwMTI+DQogICAgPHRhZzAwMDgwMDA4IGxlbj0iMCIgdGFnPSIwMDA4MDAwOCIgdnI9IkNTIi8+DQogICAgPHRhZzAwMDgwMDE2IGxlbj0iMjgiIHRhZz0iMDAwODAwMTYiIHZyPSJVSSI+MS4yLjg0MC4xMDAwOC41LjEuNC4xLjEuMy4xPC90YWcwMDA4MDAxNj4NCiAgICA8dGFnMDAwODAwMTggbGVuPSIzMCIgdGFnPSIwMDA4MDAxOCIgdnI9IlVJIj45OTkuOTk5LjEzMy4xOTk2LjEuMTgwMC4xLjYuMjk8L3RhZzAwMDgwMDE4Pg0KICAgIDx0YWcwMDA4MDAyMCBsZW49IjgiIHRhZz0iMDAwODAwMjAiIHZyPSJEQSI+MTk5NDAzMjM8L3RhZzAwMDgwMDIwPg0KICAgIDx0YWcwMDA4MDAzMCBsZW49IjgiIHRhZz0iMDAwODAwMzAiIHZyPSJUTSI+MTE1MTA0LjA8L3RhZzAwMDgwMDMwPg0KICAgIDx0YWcwMDA4MDA1MCBsZW49IjAiIHRhZz0iMDAwODAwNTAiIHZyPSJTSCIvPg0KICAgIDx0YWcwMDA4MDA2MCBsZW49IjIiIHRhZz0iMDAwODAwNjAiIHZyPSJDUyI+VVM8L3RhZzAwMDgwMDYwPg0KICAgIDx0YWcwMDA4MDA3MCBsZW49IjE0IiB0YWc9IjAwMDgwMDcwIiB2cj0iTE8iLz4NCiAgICA8dGFnMDAwODAwOTAgbGVuPSIxOCIgdGFnPSIwMDA4MDA5MCIgdnI9IlBOIj4tLS0tLS0tLS0tLS0tLS0tLS08L3RhZzAwMDgwMDkwPg0KICAgIDx0YWcwMDA4MTAzMCBsZW49IjE0IiB0YWc9IjAwMDgxMDMwIiB2cj0iTE8iPkVjaG9jYXJkaW9ncmFtPC90YWcwMDA4MTAzMD4NCiAgICA8dGFnMDAwODEwM0UgbGVuPSIxNiIgdGFnPSIwMDA4MTAzRSIgdnI9IkxPIj5JQVMgRkVOMjwvdGFnMDAwODEwM0U+DQogICAgPHRhZzAwMTAwMDEwIGxlbj0iMTYiIHRhZz0iMDAxMDAwMTAiIHZyPSJQTiI+UnVibyBERU1PPC90YWcwMDEwMDAxMD4NCiAgICA8dGFnMDAxMDAwMjAgbGVuPSIxMiIgdGFnPSIwMDEwMDAyMCIgdnI9IkxPIj4xMjMtNDUtNjc4OTwvdGFnMDAxMDAwMjA+DQogICAgPHRhZzAwMTAwMDMwIGxlbj0iOCIgdGFnPSIwMDEwMDAzMCIgdnI9IkRBIj4xOTIzMTAxNjwvdGFnMDAxMDAwMzA+DQogICAgPHRhZzAwMTAwMDQwIGxlbj0iMiIgdGFnPSIwMDEwMDA0MCIgdnI9IkNTIj5GPC90YWcwMDEwMDA0MD4NCiAgICA8dGFnMDAxODEwNjMgbGVuPSIxMCIgdGFnPSIwMDE4MTA2MyIgdnI9IkRTIj42Mi43MjcyNzI8L3RhZzAwMTgxMDYzPg0KICAgIDx0YWcwMDIwMDAwRCBsZW49IjE2IiB0YWc9IjAwMjAwMDBEIiB2cj0iVUkiPjk5OS45OTkuMzg1OTc0NDwvdGFnMDAyMDAwMEQ+DQogICAgPHRhZzAwMjAwMDBFIGxlbj0iMTYiIHRhZz0iMDAyMDAwMEUiIHZyPSJVSSI+OTk5Ljk5OS45NDgyNzQ1MzwvdGFnMDAyMDAwMEU+DQogICAgPHRhZzAwMjAwMDEwIGxlbj0iMTAiIHRhZz0iMDAyMDAwMTAiIHZyPSJTSCI+MDI3ODkzNDYyPC90YWcwMDIwMDAxMD4NCiAgICA8dGFnMDAyMDAwMTEgbGVuPSI0IiB0YWc9IjAwMjAwMDExIiB2cj0iSVMiPjU4Mjk8L3RhZzAwMjAwMDExPg0KICAgIDx0YWcwMDIwMDAxMyBsZW49IjIiIHRhZz0iMDAyMDAwMTMiIHZyPSJJUyI+Mjg8L3RhZzAwMjAwMDEzPg0KICAgIDx0YWcwMDIwMDAyMCBsZW49IjAiIHRhZz0iMDAyMDAwMjAiIHZyPSJDUyIvPg0KICAgIDx0YWcwMDIwNDAwMCBsZW49IjE2IiB0YWc9IjAwMjA0MDAwIiB2cj0iTFQiPklBUyBGRU4yPC90YWcwMDIwNDAwMD4NCiAgICA8dGFnMDAyODAwMDIgbGVuPSIyIiB0YWc9IjAwMjgwMDAyIiB2cj0iVVMiPjE8L3RhZzAwMjgwMDAyPg0KICAgIDx0YWcwMDI4MDAwNCBsZW49IjE0IiB0YWc9IjAwMjgwMDA0IiB2cj0iQ1MiPlBBTEVUVEUgQ09MT1I8L3RhZzAwMjgwMDA0Pg0KICAgIDx0YWcwMDI4MDAwOCBsZW49IjIiIHRhZz0iMDAyODAwMDgiIHZyPSJJUyI+MTE8L3RhZzAwMjgwMDA4Pg0KICAgIDx0YWcwMDI4MDAwOSBsZW49IjQiIHRhZz0iMDAyODAwMDkiIHZyPSJBVCI+MDAxODEwNjM8L3RhZzAwMjgwMDA5Pg0KICAgIDx0YWcwMDI4MDAxMCBsZW49IjIiIHRhZz0iMDAyODAwMTAiIHZyPSJVUyI+NDMwPC90YWcwMDI4MDAxMD4NCiAgICA8dGFnMDAyODAwMTEgbGVuPSIyIiB0YWc9IjAwMjgwMDExIiB2cj0iVVMiPjYwMDwvdGFnMDAyODAwMTE+DQogICAgPHRhZzAwMjgwMTAwIGxlbj0iMiIgdGFnPSIwMDI4MDEwMCIgdnI9IlVTIj44PC90YWcwMDI4MDEwMD4NCiAgICA8dGFnMDAyODAxMDEgbGVuPSIyIiB0YWc9IjAwMjgwMTAxIiB2cj0iVVMiPjg8L3RhZzAwMjgwMTAxPg0KICAgIDx0YWcwMDI4MDEwMiBsZW49IjIiIHRhZz0iMDAyODAxMDIiIHZyPSJVUyI+NzwvdGFnMDAyODAxMDI+DQogICAgPHRhZzAwMjgwMTAzIGxlbj0iMiIgdGFnPSIwMDI4MDEwMyIgdnI9IlVTIj4wPC90YWcwMDI4MDEwMz4NCiAgICA8dGFnMDAyODExMDEgbGVuPSI2IiB0YWc9IjAwMjgxMTAxIiB2cj0iVVMiPjI1NlwwXDE2PC90YWcwMDI4MTEwMT4NCiAgICA8dGFnMDAyODExMDIgbGVuPSI2IiB0YWc9IjAwMjgxMTAyIiB2cj0iVVMiPjI1NlwwXDE2PC90YWcwMDI4MTEwMj4NCiAgICA8dGFnMDAyODExMDMgbGVuPSI2IiB0YWc9IjAwMjgxMTAzIiB2cj0iVVMiPjI1NlwwXDE2PC90YWcwMDI4MTEwMz4NCiAgICA8dGFnMDAyODExOTkgbGVuPSIxOCIgdGFnPSIwMDI4MTE5OSIgdnI9IlVJIj45OTkuOTk5LjM4OTk3MjIzODwvdGFnMDAyODExOTk+DQogICAgPHRhZzAwMjgxMjAxIGxlbj0iNTEyIiB0YWc9IjAwMjgxMjAxIiB2cj0iT1ciPjBcNTEyXDEwMjRcMTc5MlwyNTYwXDMwNzJcMzg0MFw0MzUyXDQ4NjRcNTg4OFw2NDAwXDcxNjhcNzY4MFw4MTkyXDkyMTZcOTcyOFwxMDI0MFwxMTAwOFwxMTUyMFwxMjI4OFwxMzA1NlwxMzU2OFwxNDMzNlwxNDg0OFwxNTM2MFwxNjEyOFwxNjg5NlwxNzQwOFwxODE3NlwxODY4OFwxOTQ1NlwxOTk2OFwyMDczNlwyMTUwNFwyMjAxNlwyMjUyOFwyMzI5NlwyNDA2NFwyNDgzMlwyNTYwMFwyNTg1NlwyNjYyNFwyNzM5MlwyNzkwNFwyODY3MlwyOTE4NFwyOTk1MlwzMDQ2NFwzMTIzMlwzMjAwMFwzMjUxMlwzMzAyNFwzMzc5MlwzNDMwNFwzNTA3MlwzNTg0MFwzNjM1MlwzNzEyMFwzNzYzMlwzODQwMFwzOTE2OFwzOTY4MFw0MDE5Mlw0MDk2MFw0MTQ3Mlw0MjQ5Nlw0MzAwOFw0MzUyMFw0NDI4OFw0NDgwMFw0NTU2OFw0NjMzNlw0Njg0OFw0NzYxNlw0ODEyOFw0ODY0MFw0OTY2NFw1MDE3Nlw1MDY4OFw1MTQ1Nlw1MTk2OFw1MjQ4MFw1MzUwNFw1NDAxNlw1NDc4NFw1NTI5Nlw1NTgwOFw1NjgzMlw1NzM0NFw1Nzg1Nlw1ODYyNFw1OTEzNlw2MDE2MFw2MDY3Mlw2MTE4NFw2MTk1Mlw2MjQ2NFw2Mjk3Nlw2NDI1Nlw2NDc2OFw0MzUyXDY1MjgwXDY1MjgwXDExMDA4XDQyNDk2XDQzNTIwXDQ0ODAwXDM1NTg0XDQxNDcyXDUxMlwxMDI0XDEyODBcMTUzNlwxNzkyXDE3OTJcNjE0NFw0NDU0NFw3NDI0XDY1MjgwXDMwMjA4XDBcMTk3MTJcNTIyMjRcNTAxNzZcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcNTYzMlw1NjMyXDU2MzJcNTYzMlwxMTI2NFwxMTI2NFwxMTI2NFwxMTI2NFwxNjY0MFwxNjY0MFwxNjY0MFwxNjY0MFwyMTc2MFwyMTc2MFwyMTc2MFwyMTc2MFwyNjg4MFwyNjg4MFwyNjg4MFwyNjg4MFwzMTQ4OFwzMTQ4OFwzMTQ4OFwzMTQ4OFwzNjA5NlwzNjA5NlwzNjA5NlwzNjA5Nlw0MDQ0OFw0MDQ0OFw0MDQ0OFw0MDQ0OFw0NDU0NFw0NDU0NFw0NDU0NFw0NDU0NFw0ODY0MFw0ODY0MFw0ODY0MFw0ODY0MFw1MjIyNFw1MjIyNFw1MjIyNFw1MjIyNFw1NTgwOFw1NTgwOFw1NTgwOFw1NTgwOFw1OTEzNlw1OTEzNlw1OTEzNlw1OTEzNlw2MjIwOFw2MjIwOFw2MjIwOFw2MjIwOFw2NTI4MFw2NTI4MFw2NTI4MFw2NTI4MDwvdGFnMDAyODEyMDE+DQogICAgPHRhZzAwMjgxMjAyIGxlbj0iNTEyIiB0YWc9IjAwMjgxMjAyIiB2cj0iT1ciPjBcNTEyXDEwMjRcMTc5MlwyNTYwXDMwNzJcMzg0MFw0MzUyXDQ4NjRcNTg4OFw2NDAwXDcxNjhcNzY4MFw4MTkyXDkyMTZcOTcyOFwxMDI0MFwxMTAwOFwxMTUyMFwxMjI4OFwxMzA1NlwxMzU2OFwxNDMzNlwxNDg0OFwxNTM2MFwxNjEyOFwxNjg5NlwxNzQwOFwxODE3NlwxODY4OFwxOTQ1NlwxOTk2OFwyMDczNlwyMTUwNFwyMjAxNlwyMjUyOFwyMzI5NlwyNDA2NFwyNDgzMlwyNTYwMFwyNTg1NlwyNjYyNFwyNzM5MlwyNzkwNFwyODY3MlwyOTE4NFwyOTk1MlwzMDQ2NFwzMTIzMlwzMjAwMFwzMjUxMlwzMzAyNFwzMzc5MlwzNDMwNFwzNTA3MlwzNTg0MFwzNjM1MlwzNzEyMFwzNzYzMlwzODQwMFwzOTE2OFwzOTY4MFw0MDE5Mlw0MDk2MFw0MTQ3Mlw0MjQ5Nlw0MzAwOFw0MzUyMFw0NDI4OFw0NDgwMFw0NTU2OFw0NjMzNlw0Njg0OFw0NzYxNlw0ODEyOFw0ODY0MFw0OTY2NFw1MDE3Nlw1MDY4OFw1MTQ1Nlw1MTk2OFw1MjQ4MFw1MzUwNFw1NDAxNlw1NDc4NFw1NTI5Nlw1NTgwOFw1NjgzMlw1NzM0NFw1Nzg1Nlw1ODYyNFw1OTEzNlw2MDE2MFw2MDY3Mlw2MTE4NFw2MTk1Mlw2MjQ2NFw2Mjk3Nlw2NDI1Nlw2NDc2OFw0MzUyXDI1NjAwXDI1NjAwXDQzNTIwXDQ0ODAwXDQ3ODcyXDU5OTA0XDQ3NjE2XDExMDA4XDg3MDRcMTg0MzJcMjQ4MzJcMjk5NTJcMzM3OTJcMzc2MzJcNjE0NFw0NDU0NFwxMTUyMFw2NTI4MFwzMDIwOFwwXDUxNDU2XDUyMjI0XDUwMTc2XDBcMFwwXDBcMFwwXDBcMFw1OTM5Mlw1OTM5Mlw1OTM5Mlw1OTM5Mlw0OTkyMFw0OTkyMFw0OTkyMFw0OTkyMFw0MTQ3Mlw0MTQ3Mlw0MTQ3Mlw0MTQ3MlwzNDA0OFwzNDA0OFwzNDA0OFwzNDA0OFwyNzM5MlwyNzM5MlwyNzM5MlwyNzM5MlwyMTc2MFwyMTc2MFwyMTc2MFwyMTc2MFwxNjY0MFwxNjY0MFwxNjY0MFwxNjY0MFwxMjgwMFwxMjgwMFwxMjgwMFwxMjgwMFw5MjE2XDkyMTZcOTIxNlw5MjE2XDY0MDBcNjQwMFw2NDAwXDY0MDBcNDA5Nlw0MDk2XDQwOTZcNDA5NlwyODE2XDI4MTZcMjgxNlwyODE2XDEyODBcMTI4MFwxMjgwXDEyODBcMTAyNFwxMDI0XDEwMjRcMTAyNFw3NjhcNzY4XDc2OFw3NjhcMFwwXDBcMFw3NjhcNzY4XDc2OFw3NjhcMTAyNFwxMDI0XDEwMjRcMTAyNFwxNTM2XDE1MzZcMTUzNlwxNTM2XDI4MTZcMjgxNlwyODE2XDI4MTZcNDYwOFw0NjA4XDQ2MDhcNDYwOFw2OTEyXDY5MTJcNjkxMlw2OTEyXDk3MjhcOTcyOFw5NzI4XDk3MjhcMTM1NjhcMTM1NjhcMTM1NjhcMTM1NjhcMTc5MjBcMTc5MjBcMTc5MjBcMTc5MjBcMjM1NTJcMjM1NTJcMjM1NTJcMjM1NTJcMjk0NDBcMjk0NDBcMjk0NDBcMjk0NDBcMzY4NjRcMzY4NjRcMzY4NjRcMzY4NjRcNDQ4MDBcNDQ4MDBcNDQ4MDBcNDQ4MDBcNTQwMTZcNTQwMTZcNTQwMTZcNTQwMTZcNjQwMDBcNjQwMDBcNjQwMDBcNjQwMDA8L3RhZzAwMjgxMjAyPg0KICAgIDx0YWcwMDI4MTIwMyBsZW49IjUxMiIgdGFnPSIwMDI4MTIwMyIgdnI9Ik9XIj4wXDUxMlwxMDI0XDE3OTJcMjU2MFwzMDcyXDM4NDBcNDM1Mlw0ODY0XDU4ODhcNjQwMFw3MTY4XDc2ODBcODE5Mlw5MjE2XDk3MjhcMTAyNDBcMTEwMDhcMTE1MjBcMTIyODhcMTMwNTZcMTM1NjhcMTQzMzZcMTQ4NDhcMTUzNjBcMTYxMjhcMTY4OTZcMTc0MDhcMTgxNzZcMTg2ODhcMTk0NTZcMTk5NjhcMjA3MzZcMjE1MDRcMjIwMTZcMjI1MjhcMjMyOTZcMjQwNjRcMjQ4MzJcMjU2MDBcMjU4NTZcMjY2MjRcMjczOTJcMjc5MDRcMjg2NzJcMjkxODRcMjk5NTJcMzA0NjRcMzEyMzJcMzIwMDBcMzI1MTJcMzMwMjRcMzM3OTJcMzQzMDRcMzUwNzJcMzU4NDBcMzYzNTJcMzcxMjBcMzc2MzJcMzg0MDBcMzkxNjhcMzk2ODBcNDAxOTJcNDA5NjBcNDE0NzJcNDI0OTZcNDMwMDhcNDM1MjBcNDQyODhcNDQ4MDBcNDU1NjhcNDYzMzZcNDY4NDhcNDc2MTZcNDgxMjhcNDg2NDBcNDk2NjRcNTAxNzZcNTA2ODhcNTE0NTZcNTE5NjhcNTI0ODBcNTM1MDRcNTQwMTZcNTQ3ODRcNTUyOTZcNTU4MDhcNTY4MzJcNTczNDRcNTc4NTZcNTg2MjRcNTkxMzZcNjAxNjBcNjA2NzJcNjExODRcNjE5NTJcNjI0NjRcNjI5NzZcNjQyNTZcNjQ3NjhcNDM1MlwxNjY0MFwxNjY0MFw1OTkwNFw0MzAwOFw0NDU0NFwxMDc1MlwxNDMzNlwzNTMyOFw0MDk2XDUzNzZcNzQyNFw4OTYwXDEwMjQwXDExMjY0XDYxNDRcNDQ1NDRcMTg2ODhcNjUyODBcMzAyMDhcMFw2NTI4MFw1MjIyNFw1MDE3NlwwXDBcMFwwXDBcMFwwXDBcNjM3NDRcNjM3NDRcNjM3NDRcNjM3NDRcNjA5MjhcNjA5MjhcNjA5MjhcNjA5MjhcNTc4NTZcNTc4NTZcNTc4NTZcNTc4NTZcNTQ3ODRcNTQ3ODRcNTQ3ODRcNTQ3ODRcNTE3MTJcNTE3MTJcNTE3MTJcNTE3MTJcNDgzODRcNDgzODRcNDgzODRcNDgzODRcNDUwNTZcNDUwNTZcNDUwNTZcNDUwNTZcNDE0NzJcNDE0NzJcNDE0NzJcNDE0NzJcMzgxNDRcMzgxNDRcMzgxNDRcMzgxNDRcMzQ1NjBcMzQ1NjBcMzQ1NjBcMzQ1NjBcMzA5NzZcMzA5NzZcMzA5NzZcMzA5NzZcMjcxMzZcMjcxMzZcMjcxMzZcMjcxMzZcMjMyOTZcMjMyOTZcMjMyOTZcMjMyOTZcMTk0NTZcMTk0NTZcMTk0NTZcMTk0NTZcMTUzNjBcMTUzNjBcMTUzNjBcMTUzNjBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMFwwXDBcMDwvdGFnMDAyODEyMDM+DQo8L2RpY29tPg0K</inboundTemplate>
+        <outboundTemplate encoding="base64"></outboundTemplate>
+        <inboundDataType>DICOM</inboundDataType>
+        <outboundDataType>DICOM</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.dicom.DICOMDataTypeProperties" version="4.4.0"/>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.dicom.DICOMDataTypeProperties" version="4.4.0"/>
+      </transformer>
+      <responseTransformer version="4.4.0">
+        <elements/>
+        <inboundDataType>DICOM</inboundDataType>
+        <outboundDataType>DICOM</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.dicom.DICOMDataTypeProperties" version="4.4.0"/>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.dicom.DICOMDataTypeProperties" version="4.4.0"/>
+      </responseTransformer>
+      <filter version="4.4.0">
+        <elements>
+          <com.mirth.connect.plugins.javascriptrule.JavaScriptRule version="4.4.0">
+            <name>Check if incomming dicom-image already was de-identified</name>
+            <sequenceNumber>0</sequenceNumber>
+            <enabled>true</enabled>
+            <script>channelMap.get($(&apos;INCDCMANON&apos;));
+if ($(&apos;INCDCMANON&apos;) == true) {
+	logger.info(&apos;Save handled by store direct destination.&apos;)
+    return false;
+}
+else
+{
+logger.debug(&apos;Image was anonomized and saved as &apos; + $(&apos;DCMFN_anon&apos;))
+return true;
+
+}</script>
+          </com.mirth.connect.plugins.javascriptrule.JavaScriptRule>
+        </elements>
+      </filter>
+      <transportName>File Writer</transportName>
+      <mode>DESTINATION</mode>
+      <enabled>true</enabled>
+      <waitForPrevious>true</waitForPrevious>
+    </connector>
+  </destinationConnectors>
+  <preprocessingScript>// Modify the message variable below to pre process data
+return message;</preprocessingScript>
+  <postprocessingScript>// This script executes once after a message has been processed
+// Responses returned from here will be stored as &quot;Postprocessor&quot; in the response map
+return;</postprocessingScript>
+  <deployScript>// This script executes once when the channel is deployed
+// You only have access to the globalMap and globalChannelMap here to persist data
+return;</deployScript>
+  <undeployScript>// This script executes once when the channel is undeployed
+// You only have access to the globalMap and globalChannelMap here to persist data
+return;</undeployScript>
+  <properties version="4.4.0">
+    <clearGlobalChannelMap>true</clearGlobalChannelMap>
+    <messageStorageMode>DEVELOPMENT</messageStorageMode>
+    <encryptData>false</encryptData>
+    <encryptAttachments>false</encryptAttachments>
+    <encryptCustomMetaData>false</encryptCustomMetaData>
+    <removeContentOnCompletion>false</removeContentOnCompletion>
+    <removeOnlyFilteredOnCompletion>false</removeOnlyFilteredOnCompletion>
+    <removeAttachmentsOnCompletion>false</removeAttachmentsOnCompletion>
+    <initialState>STARTED</initialState>
+    <storeAttachments>true</storeAttachments>
+    <metaDataColumns>
+      <metaDataColumn>
+        <name>SOURCE</name>
+        <type>STRING</type>
+        <mappingName>mirth_source</mappingName>
+      </metaDataColumn>
+      <metaDataColumn>
+        <name>TYPE</name>
+        <type>STRING</type>
+        <mappingName>mirth_type</mappingName>
+      </metaDataColumn>
+    </metaDataColumns>
+    <attachmentProperties version="4.4.0">
+      <className>com.mirth.connect.server.attachments.dicom.DICOMAttachmentHandlerProvider</className>
+      <type>DICOM</type>
+      <properties/>
+    </attachmentProperties>
+    <resourceIds class="linked-hash-map">
+      <entry>
+        <string>Default Resource</string>
+        <string>[Default Resource]</string>
+      </entry>
+    </resourceIds>
+  </properties>
+  <exportData>
+    <metadata>
+      <enabled>true</enabled>
+      <lastModified>
+        <time>1695583688931</time>
+        <timezone>Europe/Stockholm</timezone>
+      </lastModified>
+      <pruningSettings>
+        <archiveEnabled>true</archiveEnabled>
+        <pruneErroredMessages>false</pruneErroredMessages>
+      </pruningSettings>
+      <userId>1</userId>
+    </metadata>
+  </exportData>
+</channel>
